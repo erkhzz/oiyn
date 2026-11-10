@@ -1,0 +1,810 @@
+<!doctype html>
+<html lang="kk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Түс лабораториясы</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@500;700;800&family=Nunito:wght@500;700;800&family=Roboto+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: one column of cards under a sticky level bar. The hero is an RGB mixing tile: three lights overlap into white, the way a color sensor sees light. */
+:root{
+  color-scheme: light;
+  --bg:#F1F3F9; --card:#FFFFFF; --ink:#14172B; --muted:#4F5672; --line:#D5DAEA;
+  --red:#E63946; --green:#1FA971; --blue:#2F6BFF; --yellow:#FFC400; --yellow-d:#A67F00;
+  --blue-d:#1D45B8; --green-d:#13774F; --violet:#7C4DEA; --violet-d:#532FB0; --rose:#E0456B; --rose-d:#A12A49;
+  --good:#0E7A55; --bad:#B3253F;
+  --font-display:'Rubik','Segoe UI',Arial,sans-serif;
+  --font-body:'Nunito','Segoe UI',Arial,sans-serif;
+  --font-mono:'Roboto Mono',Consolas,'Courier New',monospace;
+}
+*{box-sizing:border-box}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:var(--font-body); font-size:17px; line-height:1.5;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+  padding-block:0 48px;
+}
+h1,h2,h3{font-family:var(--font-display); margin:0; text-wrap:balance; line-height:1.15}
+p{margin:0}
+button,select{font-family:inherit; color:inherit}
+:focus-visible{outline:3px solid var(--violet); outline-offset:2px}
+.wrap{max-width:920px; margin:0 auto}
+
+/* Hero */
+.hero{padding-block:26px 14px; display:flex; gap:18px; align-items:center; flex-wrap:wrap}
+.rgb{width:clamp(96px, 22vw, 132px); aspect-ratio:1; flex:none; background:var(--ink); border-radius:22px; position:relative; overflow:hidden; isolation:isolate}
+.rgb i{position:absolute; width:58%; height:58%; border-radius:50%; mix-blend-mode:screen; animation:drift 6s ease-in-out infinite alternate}
+.rgb .r{background:#FF2B3A; left:10%; top:8%}
+.rgb .g{background:#18FF8A; right:10%; top:8%; animation-delay:-2s}
+.rgb .b{background:#2A5BFF; left:21%; bottom:8%; animation-delay:-4s}
+@keyframes drift{to{transform:translate(6%, 5%) scale(1.06)}}
+.hero .txt{flex:1 1 280px; min-width:0}
+.eyebrow{font-weight:800; letter-spacing:.08em; text-transform:uppercase; font-size:13px; color:var(--muted)}
+.hero h1{font-size:clamp(32px, 8vw, 56px); margin:4px 0 6px}
+.lead{max-width:58ch; color:var(--muted); font-weight:700}
+.score{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:12px; width:100%}
+.stars{display:flex; gap:3px; flex-wrap:wrap}
+.stars svg{width:23px; height:23px}
+.stars .off{fill:#D9DDEC}
+.stars .on{fill:var(--yellow); stroke:var(--yellow-d); stroke-width:1.5}
+.score b{font-family:var(--font-display)}
+.bar{flex:1 1 140px; height:12px; background:#DDE1EF; border-radius:99px; overflow:hidden; min-width:120px}
+.bar i{display:block; height:100%; width:0; background:var(--green); border-radius:99px; transition:width .4s}
+
+/* Tabs */
+.tabsbar{position:sticky; top:env(safe-area-inset-top, 0px); z-index:5; background:var(--bg); padding-block:10px}
+body::before{content:""; position:fixed; inset:0 0 auto; height:env(safe-area-inset-top, 0px); z-index:10; background:var(--bg)}
+.tabs{display:flex; gap:8px; flex-wrap:wrap}
+.tab{flex:1 1 150px; text-align:left; cursor:pointer; background:var(--card); border:2px solid var(--line); border-bottom-width:5px; border-radius:14px; padding:8px 12px; font-weight:800; font-size:15px; line-height:1.25}
+.tab small{display:block; font-weight:700; color:var(--muted); font-size:12.5px}
+.tab:active{transform:translateY(3px); border-bottom-width:2px}
+.tab[aria-selected="true"]{border-color:transparent; color:#fff}
+.tab[aria-selected="true"] small{color:rgba(255,255,255,.9)}
+.tab[data-lvl="d1"][aria-selected="true"]{background:var(--blue); border-bottom-color:var(--blue-d)}
+.tab[data-lvl="d2"][aria-selected="true"]{background:var(--green); border-bottom-color:var(--green-d)}
+.tab[data-lvl="d3"][aria-selected="true"]{background:var(--violet); border-bottom-color:var(--violet-d)}
+.tab[data-lvl="finish"][aria-selected="true"]{background:var(--rose); border-bottom-color:var(--rose-d)}
+
+/* Levels and cards */
+.level{display:flex; flex-direction:column; gap:18px; padding-top:10px}
+.level[hidden]{display:none}
+.lvlhead h2{font-size:clamp(23px, 5vw, 31px)}
+.lvlhead p{color:var(--muted); font-weight:700; margin-top:4px}
+.card{background:var(--card); border:2px solid var(--line); border-radius:20px; padding:18px; display:flex; flex-direction:column; gap:14px; min-width:0}
+.card.done{border-color:#8BD2B5}
+.chead{display:flex; align-items:center; gap:14px; flex-wrap:wrap}
+.chead h3{font-size:clamp(18px, 4vw, 22px); flex:1 1 200px; min-width:0}
+.num{width:40px; height:40px; display:grid; place-items:center; flex:none; color:#fff; font:800 19px/1 var(--font-display); border-radius:10px; border-bottom:4px solid rgba(0,0,0,.28)}
+#sec-d1 .num{background:var(--blue)}
+#sec-d2 .num{background:var(--green)}
+#sec-d3 .num{background:var(--violet)}
+.badge{display:none; background:#D9F3E8; color:var(--good); font-weight:800; font-size:14px; padding:4px 12px; border-radius:99px}
+.card.done .badge{display:inline-block}
+.task{font-weight:700}
+.hint{color:var(--muted); font-size:15px; font-weight:700}
+.msg{min-height:1.6em; font-weight:800}
+.msg.good{color:var(--good)}
+.msg.bad{color:var(--bad)}
+.qtext{font:700 19px/1.35 var(--font-display)}
+
+/* Buttons */
+.btn{cursor:pointer; background:var(--blue); color:#fff; border:0; border-bottom:5px solid var(--blue-d); border-radius:12px; padding:9px 18px; font:800 16px/1.2 var(--font-body)}
+.btn:active{transform:translateY(3px); border-bottom-width:2px}
+.btn.alt{background:#fff; color:var(--ink); border:2px solid var(--line); border-bottom-width:5px}
+.btn.green{background:var(--green); border-bottom-color:var(--green-d)}
+.btn.violet{background:var(--violet); border-bottom-color:var(--violet-d)}
+.btn.rose{background:var(--rose); border-bottom-color:var(--rose-d)}
+.btn:disabled{opacity:.5; cursor:default}
+.row{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+
+.opts{display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:10px}
+.opt{cursor:pointer; background:#fff; border:2px solid var(--line); border-bottom-width:5px; border-radius:12px; padding:10px 12px; font:800 16px/1.3 var(--font-body); text-align:left; min-width:0; overflow-wrap:anywhere}
+.opt:active{transform:translateY(3px); border-bottom-width:2px}
+.opt.right{background:#D9F3E8; border-color:var(--good)}
+.opt.wrong{background:#FFE3E8; border-color:var(--bad); animation:shake .4s}
+.opt:disabled{cursor:default}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+@keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.12)}100%{transform:scale(1)}}
+
+/* Swatches */
+.sw{display:inline-block; width:20px; height:20px; border-radius:50%; border:2px solid var(--ink); vertical-align:-4px; flex:none}
+.chips{display:flex; flex-wrap:wrap; gap:8px}
+.chip{display:inline-flex; align-items:center; gap:8px; background:#F3F5FC; border:2px solid var(--line); border-radius:99px; padding:4px 12px 4px 8px; font-weight:800; font-size:15px}
+.chiplab{font-weight:800; font-size:14px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em}
+
+/* Explainer */
+.explain{display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,1fr); gap:16px; align-items:center}
+.explain svg{width:100%; height:auto; display:block; background:#F7F8FD; border-radius:14px; border:2px solid var(--line)}
+.explain svg text{font-family:'Nunito','Segoe UI',Arial,sans-serif; font-weight:800}
+.explain ol{margin:0; padding-left:1.2em; display:flex; flex-direction:column; gap:8px; font-weight:700}
+
+/* Task 2: scanner */
+.scan{display:grid; grid-template-columns:minmax(0,200px) minmax(0,1fr); gap:16px; align-items:center}
+.disc{position:relative; width:100%; max-width:200px; aspect-ratio:1; border-radius:50%; border:4px solid var(--ink); overflow:hidden; margin:0 auto}
+.disc .fog{position:absolute; inset:0; background:repeating-linear-gradient(45deg,#C7CCDD 0 10px,#D6DAE8 10px 20px); opacity:1; transition:opacity .15s}
+.read{font:700 16px/1.4 var(--font-mono); background:var(--ink); color:#C8FFD9; padding:10px 12px; border-radius:10px; overflow-wrap:anywhere}
+.read.off{color:#FFD7A8}
+.dist{display:flex; flex-direction:column; gap:6px; font-weight:800}
+input[type="range"]{width:100%; accent-color:var(--blue)}
+.names{display:flex; flex-wrap:wrap; gap:8px}
+.names .opt{flex:1 1 90px; text-align:center}
+
+/* Matching */
+.match{display:grid; grid-template-columns:1fr 1fr; gap:10px 14px}
+.match .col{display:flex; flex-direction:column; gap:10px; min-width:0}
+.mbtn{cursor:pointer; text-align:left; background:#fff; border:2px solid var(--line); border-bottom-width:5px; border-radius:12px; padding:10px 12px; font:700 15.5px/1.3 var(--font-body); min-width:0; overflow-wrap:anywhere; display:flex; align-items:center; gap:10px; min-height:56px}
+.mbtn.sel{border-color:var(--violet); background:#F0E9FF}
+.mbtn.bad{animation:shake .4s; border-color:var(--bad)}
+.mbtn.m0{background:#E5ECFF; border-color:var(--blue)}
+.mbtn.m1{background:#D9F3E8; border-color:var(--green)}
+.mbtn.m2{background:#FFF1BF; border-color:var(--yellow-d)}
+.mbtn.m3{background:#FFE3E8; border-color:var(--rose)}
+.mbtn:disabled{cursor:default}
+
+/* Task 4: conveyor */
+.belt{position:relative; height:100px; border-radius:14px; overflow:hidden; display:flex; align-items:center; justify-content:center; background:repeating-linear-gradient(90deg,#272B45 0 18px,#32375A 18px 36px)}
+.item{width:58px; height:58px; border-radius:14px; background:#8A8FA8; display:grid; place-items:center; color:#fff; font:800 26px var(--font-display); border:3px solid rgba(255,255,255,.75); position:relative; z-index:1}
+.item.enter{animation:enter .5s ease-out}
+@keyframes enter{from{transform:translateX(-45vw)}to{transform:none}}
+.sensor{position:absolute; top:0; left:50%; transform:translateX(-50%); width:88px; height:24px; background:var(--ink); border-radius:0 0 12px 12px; display:flex; align-items:center; justify-content:center; z-index:2; border:2px solid #5B6188; border-top:0}
+.sensor i{width:12px; height:12px; border-radius:50%; background:#6B7194; border:2px solid #fff; display:block}
+.timer{height:12px; border-radius:99px; background:#DDE1EF; overflow:hidden}
+.timer i{display:block; height:100%; width:0; background:var(--yellow)}
+.bins{display:grid; grid-template-columns:repeat(auto-fit, minmax(110px, 1fr)); gap:8px}
+.bin{cursor:pointer; border:3px solid var(--ink); border-bottom-width:7px; border-radius:12px; padding:12px 6px; font:800 15px/1.2 var(--font-body); text-align:center; min-width:0}
+.bin:active{transform:translateY(4px); border-bottom-width:3px}
+.bin:disabled{opacity:.55; cursor:default}
+.info4{display:flex; gap:14px; flex-wrap:wrap; font-weight:800}
+
+/* Task 5: sorter */
+.rules{display:grid; grid-template-columns:1fr; gap:8px}
+.rule{display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-weight:800; font-size:15.5px; background:#F7F8FD; border:2px solid var(--line); border-radius:12px; padding:8px 10px}
+.rule .lbl{display:flex; align-items:center; gap:8px; flex:1 1 130px; min-width:0}
+select{font:700 15.5px var(--font-body); padding:8px 10px; border:2px solid var(--line); border-radius:10px; background:#fff; flex:1 1 140px; min-width:0}
+select:focus{border-color:var(--violet); outline:none; box-shadow:0 0 0 3px rgba(124,77,234,.2)}
+.queue{display:flex; flex-direction:column; gap:6px}
+.qrow{display:flex; align-items:center; gap:10px; background:#F7F8FD; border-radius:10px; padding:6px 10px; font-weight:800; flex-wrap:wrap}
+.qrow.ok{background:#D9F3E8}
+.qrow.no{background:#FFE3E8}
+.target{background:#FFF8D6; border:2px solid var(--yellow); border-radius:14px; padding:12px 14px; font:700 clamp(16px,3.6vw,19px)/1.35 var(--font-display)}
+
+/* Track game */
+.robot{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px; align-items:start}
+.bcol{display:flex; flex-direction:column; gap:10px; min-width:0}
+.tgrid{display:grid; grid-template-columns:repeat(6, 1fr); gap:3px; max-width:360px; width:100%; background:var(--ink); padding:3px; border-radius:12px}
+.tc{aspect-ratio:1; background:#fff; border-radius:6px; position:relative; display:grid; place-items:center; overflow:hidden}
+.tc.road{background:#E3E6F3}
+.tc.trail::before{content:""; position:absolute; inset:34%; border-radius:50%; background:rgba(20,23,43,.25)}
+.tc.start::after{content:""; position:absolute; inset:2px; border:2px dashed #7C84AD; border-radius:5px; pointer-events:none}
+.tc .ch{position:absolute; top:2px; left:4px; font:800 11px var(--font-body); color:#fff}
+.tc .ch.dk{color:var(--ink)}
+.tc svg{width:76%; height:76%; max-width:100%; position:relative; z-index:2}
+.tc .bot{transition:transform .2s}
+.tc .flag{position:absolute; width:54%; height:54%; right:3px; bottom:3px; z-index:1}
+.pal2{display:flex; flex-wrap:wrap; gap:6px}
+.pal2 button{cursor:pointer; display:inline-flex; align-items:center; gap:6px; border:2px solid var(--line); border-bottom-width:4px; background:#fff; border-radius:10px; padding:5px 10px; font:800 14px var(--font-body)}
+.pal2 button[aria-pressed="true"]{border-color:var(--violet); background:#F0E9FF}
+.pal2 button:active{transform:translateY(2px)}
+.pal2 [hidden]{display:none}
+
+.diploma{background:#fff; border:3px solid var(--yellow-d); outline:3px solid var(--yellow); outline-offset:-10px; border-radius:20px; padding:30px 20px; text-align:center; display:flex; flex-direction:column; gap:10px; align-items:center}
+.diploma .who{font:800 clamp(26px, 7vw, 40px)/1.15 var(--font-display); color:var(--rose-d); overflow-wrap:anywhere}
+.diploma .big{font:800 15px var(--font-display); letter-spacing:.14em; text-transform:uppercase; color:var(--muted)}
+input[type="text"]{width:100%; font:600 18px/1.5 var(--font-body); color:var(--ink); background:#fff; border:2px solid var(--line); border-radius:12px; padding:10px 12px}
+input[type="text"]:focus{border-color:var(--violet); outline:none; box-shadow:0 0 0 3px rgba(124,77,234,.2)}
+.foot{margin-top:28px; color:var(--muted); font-size:14px; font-weight:700}
+.toast{position:fixed; left:50%; transform:translate(-50%, 20px); bottom:calc(20px + env(safe-area-inset-bottom, 0px)); background:var(--ink); color:#fff; font-weight:800; padding:10px 20px; border-radius:99px; opacity:0; pointer-events:none; transition:opacity .25s, transform .25s; z-index:20; max-width:90vw; text-align:center}
+.toast.show{opacity:1; transform:translate(-50%, 0)}
+
+@media (max-width:680px){
+  .explain,.robot,.scan{grid-template-columns:1fr}
+  .tgrid{max-width:330px; margin:0 auto}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none !important}
+}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <div class="rgb" aria-hidden="true"><i class="r"></i><i class="g"></i><i class="b"></i></div>
+    <div class="txt">
+      <div class="eyebrow">4-сынып · Информатика</div>
+      <h1>Түс лабораториясы</h1>
+      <p class="lead">Робот түсті қалай көреді? Датчикті қос, робот-сұрыптағышты баптап, түсті жолмен жүргіз.</p>
+    </div>
+    <div class="score">
+      <div class="stars" id="stars" aria-hidden="true"></div>
+      <b id="scoreText">0 / 9</b>
+      <div class="bar" role="progressbar" aria-label="Жалпы нәтиже" aria-valuemin="0" aria-valuemax="9" aria-valuenow="0" id="barBox"><i id="barFill"></i></div>
+    </div>
+  </header>
+
+  <div class="tabsbar">
+    <div class="tabs" role="tablist" aria-label="Деңгейлер">
+      <button class="tab" role="tab" data-lvl="d1" aria-selected="true">1-деңгей<small>Датчикті таны</small></button>
+      <button class="tab" role="tab" data-lvl="d2" aria-selected="false">2-деңгей<small>Робот-сұрыптағыш</small></button>
+      <button class="tab" role="tab" data-lvl="d3" aria-selected="false">3-деңгей<small>Түсті жол</small></button>
+      <button class="tab" role="tab" data-lvl="finish" aria-selected="false">Диплом<small>Жеңімпаздар үшін</small></button>
+    </div>
+  </div>
+
+  <!-- LEVEL 1 -->
+  <section class="level" id="sec-d1">
+    <div class="lvlhead">
+      <h2>1-деңгей. Датчикті таны</h2>
+      <p>Түс датчигі заттың түсін көріп, роботқа хабарлайды.</p>
+    </div>
+
+    <article class="card">
+      <h3>Түс датчигі қалай жұмыс істейді?</h3>
+      <div class="explain">
+        <svg viewBox="0 0 420 196" role="img" aria-label="Датчик затқа жарық түсіреді, қайтқан жарықты өлшеп, контроллерге сигнал жібереді">
+          <polygon points="160,54 240,54 290,146 110,146" fill="#FFC400" opacity=".28"/>
+          <rect x="90" y="146" width="220" height="22" rx="4" fill="#E63946"/>
+          <text x="200" y="188" text-anchor="middle" font-size="13" fill="#14172B">Қызыл зат</text>
+          <rect x="150" y="10" width="100" height="44" rx="8" fill="#14172B"/>
+          <text x="200" y="37" text-anchor="middle" font-size="13" fill="#FFFFFF">Түс датчигі</text>
+          <line x1="200" y1="144" x2="200" y2="62" stroke="#1D45B8" stroke-width="3" stroke-dasharray="6 5"/>
+          <polygon points="200,56 193,70 207,70" fill="#1D45B8"/>
+          <text x="208" y="108" font-size="12" fill="#1D45B8">Қайтқан жарық</text>
+          <text x="126" y="96" text-anchor="end" font-size="12" fill="#A67F00">Жарық түседі</text>
+          <line x1="250" y1="32" x2="326" y2="32" stroke="#14172B" stroke-width="3"/>
+          <polygon points="332,32 320,26 320,38" fill="#14172B"/>
+          <text x="290" y="24" text-anchor="middle" font-size="12" fill="#14172B">Сигнал</text>
+          <rect x="334" y="12" width="80" height="40" rx="8" fill="#7C4DEA"/>
+          <text x="374" y="36" text-anchor="middle" font-size="12" fill="#FFFFFF">Контроллер</text>
+        </svg>
+        <ol>
+          <li>Датчик затқа жарық түсіреді.</li>
+          <li>Зат жарықты өз түсіне қарай шағылыстырады.</li>
+          <li>Датчик қайтқан жарықты өлшеп, контроллерге сигнал жібереді.</li>
+          <li>Контроллер ереже бойынша команда береді.</li>
+        </ol>
+      </div>
+    </article>
+
+    <article class="card" id="t1">
+      <div class="chead"><span class="num">1</span><h3>Датчик туралы білгір</h3><span class="badge">Орындалды</span></div>
+      <p class="qtext" id="t1q"></p>
+      <div class="opts" id="t1o"></div>
+      <div class="msg" id="t1m" aria-live="polite"></div>
+    </article>
+
+    <article class="card" id="t2">
+      <div class="chead"><span class="num">2</span><h3>Датчикті жақындат</h3><span class="badge">Орындалды</span></div>
+      <p class="task" id="t2q"></p>
+      <div class="scan">
+        <div class="disc" id="t2disc" role="img" aria-label="Түсі белгісіз зат"><div class="fog" id="t2fog"></div></div>
+        <div style="display:flex; flex-direction:column; gap:10px; min-width:0">
+          <div class="dist"><label for="t2rng">Датчикке дейінгі қашықтық: <span id="t2dv">8</span> см</label>
+            <input type="range" id="t2rng" min="0" max="10" value="8"></div>
+          <div class="read off" id="t2read" aria-live="polite"></div>
+        </div>
+      </div>
+      <div class="names" id="t2names"></div>
+      <div class="msg" id="t2m" aria-live="polite"></div>
+    </article>
+
+    <article class="card" id="t3">
+      <div class="chead"><span class="num">3</span><h3>Түс – команда</h3><span class="badge">Орындалды</span></div>
+      <p class="task">Робот түсті көргенде не істейтінін жұптастыр. Алдымен сол жақтан түсті, сосын оң жақтан команданы таңда.</p>
+      <div class="match" id="match"></div>
+      <div class="msg" id="t3m" aria-live="polite"></div>
+    </article>
+  </section>
+
+  <!-- LEVEL 2 -->
+  <section class="level" id="sec-d2" hidden>
+    <div class="lvlhead">
+      <h2>2-деңгей. Робот-сұрыптағыш</h2>
+      <p>Конвейер заттарды әкеледі, датчик түсін оқиды, ал сен жолды таңдайсың.</p>
+    </div>
+
+    <article class="card" id="t4">
+      <div class="chead"><span class="num">4</span><h3>Конвейер ойыны</h3><span class="badge">Орындалды</span></div>
+      <p class="task">Зат датчиктің астына келеді. Түсін көріп, уақыт бітпей тиісті себетті бас. 12 зат бар. Үштен артық қателесуге болмайды. 6 заттан кейін себеттер орнын ауыстырады.</p>
+      <div class="belt" aria-hidden="true"><div class="item" id="t4item">?</div><div class="sensor"><i id="t4led"></i></div></div>
+      <div class="read off" id="t4read" aria-live="polite">Датчик: ойын басталған жоқ</div>
+      <div class="timer" aria-hidden="true"><i id="t4bar"></i></div>
+      <div class="bins" id="t4bins"></div>
+      <div class="info4"><span id="t4info">Дұрыс: 0 / 12</span><span id="t4miss">Қате: 0 / 3</span></div>
+      <div class="row"><button class="btn green" id="t4go">Бастау</button></div>
+      <div class="msg" id="t4m" aria-live="polite"></div>
+    </article>
+
+    <article class="card" id="t5">
+      <div class="chead"><span class="num">5</span><h3>Сұрыптағыш бағдарламасы</h3><span class="badge">Орындалды</span></div>
+      <p class="task" id="t5q"></p>
+      <div class="target" id="t5target"></div>
+      <div class="rules" id="t5rules"></div>
+      <div class="row"><button class="btn green" id="t5run">Іске қос</button><button class="btn alt" id="t5next" hidden>Келесі тапсырма</button></div>
+      <div class="queue" id="t5queue" aria-live="polite"></div>
+      <div class="msg" id="t5m" aria-live="polite"></div>
+    </article>
+
+    <article class="card" id="t6">
+      <div class="chead"><span class="num">6</span><h3>Робот не істейді?</h3><span class="badge">Орындалды</span></div>
+      <p class="qtext" id="t6q"></p>
+      <div><div class="chiplab">Ережелер</div><div class="chips" id="t6rules"></div></div>
+      <div><div class="chiplab">Датчик ретімен көреді</div><div class="chips" id="t6seq"></div></div>
+      <div class="opts" id="t6o"></div>
+      <div class="msg" id="t6m" aria-live="polite"></div>
+    </article>
+  </section>
+
+  <!-- LEVEL 3 -->
+  <section class="level" id="sec-d3" hidden>
+    <div class="lvlhead">
+      <h2>3-деңгей. Түсті жол</h2>
+      <p>Робот жолмен жүреді. Әр тақтайшаның түсін датчик оқиды. Түске ереже бер, робот мәреге жетсін.</p>
+    </div>
+
+    <article class="card" id="t7">
+      <div class="chead"><span class="num">7</span><h3>Мәреге жеткіз</h3><span class="badge">Орындалды</span></div>
+      <p class="task" id="t7q"></p>
+      <div class="hint">Робот төмендегі сол жақ бұрыштан жоғары қарап шығады. Түсі жоқ (ақ) тақтайшада ол түзу жүре береді. Бұрылыс болатын жерді түсінен ойлап тап.</div>
+      <div id="g7"></div>
+    </article>
+
+    <article class="card" id="t8">
+      <div class="chead"><span class="num">8</span><h3>Қатені тап та түзет</h3><span class="badge">Орындалды</span></div>
+      <p class="task" id="t8q"></p>
+      <div id="g8"></div>
+    </article>
+
+    <article class="card" id="t9">
+      <div class="chead"><span class="num">9</span><h3>Өз жолыңды сал</h3><span class="badge">Орындалды</span></div>
+      <p class="task">Түсті таңдап, тақтайшаларды бояу үшін оларды бас. Робот жоғары қарап төменгі сол жақ бұрыштан шығады. Қызыл тақтайшада тоқтайтын жол сал. Жолда кемінде 2 бұрылыс болсын. Сосын ережелерді қойып, роботты жібер.</p>
+      <div id="g9"></div>
+    </article>
+  </section>
+
+  <!-- DIPLOMA -->
+  <section class="level" id="sec-finish" hidden>
+    <div class="lvlhead">
+      <h2>Түс детективінің дипломы</h2>
+      <p>Атыңды жазып, дипломыңды жаса.</p>
+    </div>
+    <article class="card">
+      <label for="who" class="task">Сенің атың:</label>
+      <input type="text" id="who" maxlength="40" autocomplete="off" placeholder="Мысалы: Айым">
+      <div class="row"><button class="btn rose" id="mk">Диплом жаса</button></div>
+      <div class="diploma" id="dip" hidden>
+        <div class="big">Диплом</div>
+        <div class="who" id="dipName"></div>
+        <p id="dipText" style="font-weight:700"></p>
+        <div class="stars" id="dipStars" aria-hidden="true"></div>
+      </div>
+    </article>
+  </section>
+
+  <p class="foot">Мұғалімге: оқу мақсаты 4.5.3.1 (түс датчигін қолдану).</p>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(function(){
+  var $ = function(s){ return document.querySelector(s); };
+  var TASKS = ['t1','t2','t3','t4','t5','t6','t7','t8','t9'];
+  var state = {};
+  try { state = JSON.parse(localStorage.getItem('tus-lab-state') || '{}') || {}; } catch(e) { state = {}; }
+  function save(){ try { localStorage.setItem('tus-lab-state', JSON.stringify(state)); } catch(e) {} }
+  function shuffle(a){ a = a.slice(); for (var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
+  function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function setMsg(id, text, kind){ var m=$(id); m.textContent=text; m.className='msg'+(kind?' '+kind:''); }
+  function flash(el, cls){ el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); setTimeout(function(){ el.classList.remove(cls); }, 520); }
+  var toastTimer;
+  function toast(t){ var el=$('#toast'); el.textContent=t; el.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(function(){ el.classList.remove('show'); }, 2200); }
+
+  var COL = {
+    r:{n:'Қызыл', hex:'#E63946', ch:'Қ', rgb:[222,45,56]},
+    g:{n:'Жасыл', hex:'#1FA971', ch:'Ж', rgb:[32,168,112]},
+    b:{n:'Көк', hex:'#2F6BFF', ch:'К', rgb:[48,108,250]},
+    y:{n:'Сары', hex:'#FFC400', ch:'С', rgb:[250,196,6]},
+    k:{n:'Қара', hex:'#1A1A22', ch:'Қ', rgb:[26,26,34]},
+    w:{n:'Ақ', hex:'#FFFFFF', ch:'А', rgb:[246,246,246]}
+  };
+  function sw(c){ return '<i class="sw" style="background:'+COL[c].hex+'"></i>'; }
+  function rgbText(c){ var v = COL[c].rgb; return 'R ' + v[0] + '  G ' + v[1] + '  B ' + v[2]; }
+
+  var STAR = '<svg viewBox="0 0 24 24"><polygon class="CLS" points="12,2 15,9 22,9.5 16.8,14.3 18.5,21.5 12,17.7 5.5,21.5 7.2,14.3 2,9.5 9,9"/></svg>';
+  function starsHtml(n, total){ var s=''; for (var i=0;i<total;i++) s += STAR.replace('CLS', i<n ? 'on' : 'off'); return s; }
+  function count(){ return TASKS.filter(function(t){ return state[t]; }).length; }
+  function refresh(){
+    var n = count();
+    $('#stars').innerHTML = starsHtml(n, 9);
+    $('#scoreText').textContent = n + ' / 9';
+    $('#barFill').style.width = (n/9*100) + '%';
+    $('#barBox').setAttribute('aria-valuenow', n);
+    TASKS.forEach(function(t){ $('#'+t).classList.toggle('done', !!state[t]); });
+  }
+  function complete(id){ if (state[id]) return; state[id] = 1; save(); refresh(); toast('Жарайсың! Жұлдыз қосылды'); }
+
+  /* Tabs with hash routing */
+  var LV = ['d1','d2','d3','finish'];
+  function route(){
+    var h = location.hash.slice(1); if (LV.indexOf(h) < 0) h = 'd1';
+    LV.forEach(function(l){ $('#sec-'+l).hidden = (l !== h); });
+    document.querySelectorAll('.tab').forEach(function(t){ t.setAttribute('aria-selected', t.dataset.lvl === h ? 'true' : 'false'); });
+  }
+  document.querySelectorAll('.tab').forEach(function(t){ t.addEventListener('click', function(){ location.hash = t.dataset.lvl; window.scrollTo({top:0}); }); });
+  window.addEventListener('hashchange', route);
+
+  /* Generic multiple-choice rounds (options are shuffled, a = index of correct) */
+  function makeRounds(o){
+    var i = 0;
+    function render(){
+      if (i >= o.rounds.length) { $(o.q).textContent = o.finish; $(o.opts).innerHTML = ''; if (o.onEnd) o.onEnd(); setMsg(o.msg, 'Жарайсың!', 'good'); complete(o.id); return; }
+      var r = o.rounds[i];
+      $(o.q).textContent = (i+1) + ' / ' + o.rounds.length + '. ' + r.q;
+      if (o.before) o.before(r);
+      var box = $(o.opts); box.innerHTML = '';
+      shuffle(r.o.map(function(t, k){ return k; })).forEach(function(k){
+        var b = document.createElement('button'); b.type='button'; b.className='opt'; b.textContent = r.o[k];
+        b.addEventListener('click', function(){
+          if (k === r.a) {
+            b.classList.add('right'); setMsg(o.msg, r.ok || 'Дұрыс!', 'good');
+            box.querySelectorAll('.opt').forEach(function(x){ x.disabled = true; });
+            setTimeout(function(){ i++; setMsg(o.msg,'',''); render(); }, 1000);
+          } else { b.classList.add('wrong'); setMsg(o.msg, r.no || 'Қайта ойлан.', 'bad'); }
+        });
+        box.appendChild(b);
+      });
+    }
+    render();
+  }
+
+  /* ---------- Task 1: sensor quiz ---------- */
+  makeRounds({ id:'t1', q:'#t1q', opts:'#t1o', msg:'#t1m', finish:'Сен түс датчигі туралы бәрін білесің!',
+    rounds: [
+      { q:'Түс датчигі не істейді?', o:['Заттың түсін анықтайды','Дыбыстың күшін өлшейді','Ауаның температурасын өлшейді','Заттың салмағын өлшейді'], a:0, ok:'Дұрыс! Датчик түсті «көреді».' },
+      { q:'Датчик түсті қалай анықтайды?', o:['Затқа жарық түсіріп, қайтқан жарықты өлшейді','Затты иіскейді','Затты ұстап көреді','Дыбыс шығарып тыңдайды'], a:0, ok:'Дұрыс! Әр түс жарықты өзінше шағылыстырады.' },
+      { q:'Датчик түсті дұрыс оқуы үшін затқа қалай орналасуы керек?', o:['Затқа өте жақын, түзу қарап','Бөлменің арғы жағында','Көзі жабық','Затқа арқасымен'], a:0, ok:'Дұрыс! Тым алыс болса, датчик түсті ажырата алмайды.' },
+      { q:'Датчиктің сигналын кім өңдейді?', o:['Контроллер, роботтың «миы»','Дөңгелек','Батарея қақпағы','Сым'], a:0, ok:'Дұрыс! Контроллер сигналды ережемен салыстырады.' },
+      { q:'Қайсысы түс датчигін қолданудың мысалы?', o:['Қызыл түсті көргенде тоқтайтын робот','Қол шапалақтағанда жанатын шам','Қашықтықты өлшейтін рулетка','Қозғалысты сезетін қоңырау'], a:0, ok:'Дұрыс! Робот түске қарап шешім қабылдайды.' }
+    ] });
+
+  /* ---------- Task 2: bring the sensor close ---------- */
+  (function(){
+    var order = shuffle(['r','g','b','y','k','w']), i = 0;
+    var rng = $('#t2rng'), fog = $('#t2fog'), disc = $('#t2disc'), rd = $('#t2read'), names = $('#t2names');
+    ['r','g','b','y','k','w'].forEach(function(c){
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'opt'; b.textContent = COL[c].n; b.dataset.c = c;
+      b.addEventListener('click', function(){
+        if (i >= order.length) return;
+        if (+rng.value > 2) { setMsg('#t2m', 'Датчик түсті әлі көрмейді. Оны 2 см немесе жақынырақ апар.', 'bad'); return; }
+        if (c === order[i]) {
+          b.classList.add('right'); setMsg('#t2m', 'Дұрыс! Бұл ' + COL[c].n.toLowerCase() + ' түс.', 'good');
+          setTimeout(function(){ b.classList.remove('right'); i++; rng.value = 8; paint(); setMsg('#t2m','',''); }, 900);
+        } else { flash(b, 'wrong'); setMsg('#t2m', 'Бұл ' + COL[c].n.toLowerCase() + ' емес. Сандарға мұқият қара.', 'bad'); }
+      });
+      names.appendChild(b);
+    });
+    function paint(){
+      if (i >= order.length) {
+        $('#t2q').textContent = 'Алты түсті де дұрыс оқыдың!'; rd.textContent = 'Датчик: бәрі дайын'; rd.className = 'read'; fog.style.opacity = 0;
+        disc.style.background = 'conic-gradient(#E63946 0 17%, #1FA971 0 33%, #2F6BFF 0 50%, #FFC400 0 67%, #1A1A22 0 83%, #fff 0)';
+        names.querySelectorAll('.opt').forEach(function(x){ x.disabled = true; });
+        setMsg('#t2m', 'Керемет!', 'good'); complete('t2'); return;
+      }
+      var c = order[i], d = +rng.value;
+      $('#t2q').textContent = (i+1) + ' / ' + order.length + '. Дискінің түсі белгісіз. Датчикті жақындат, сандарды оқы және түстің атын тап.';
+      $('#t2dv').textContent = d;
+      disc.style.background = COL[c].hex;
+      fog.style.opacity = d <= 2 ? 0 : Math.min(1, (d - 2) / 4);
+      if (d <= 2) { rd.className = 'read'; rd.textContent = 'Датчик: ' + rgbText(c); }
+      else { rd.className = 'read off'; rd.textContent = 'Датчик: тым алыс. Жақындат!'; }
+    }
+    rng.addEventListener('input', paint); paint();
+  })();
+
+  /* ---------- Task 3: color -> command ---------- */
+  (function(){
+    var P = [['r','Тоқта'],['g','Түзу жүр'],['b','Оңға бұрыл'],['y','Солға бұрыл']];
+    var box = $('#match'), left = document.createElement('div'), right = document.createElement('div');
+    left.className = 'col'; right.className = 'col';
+    var sel = null, matched = 0;
+    P.forEach(function(p, i){
+      var b = document.createElement('button'); b.type='button'; b.className='mbtn'; b.dataset.i = i;
+      b.innerHTML = sw(p[0]) + '<span>' + COL[p[0]].n + '</span>';
+      b.addEventListener('click', function(){ if (b.disabled) return; left.querySelectorAll('.mbtn').forEach(function(x){ x.classList.remove('sel'); }); sel = i; b.classList.add('sel'); });
+      left.appendChild(b);
+    });
+    shuffle([0,1,2,3]).forEach(function(i){
+      var b = document.createElement('button'); b.type='button'; b.className='mbtn'; b.textContent = P[i][1]; b.dataset.i = i;
+      b.addEventListener('click', function(){
+        if (b.disabled) return;
+        if (sel === null) { setMsg('#t3m', 'Алдымен сол жақтан түсті таңда.', 'bad'); return; }
+        var lb = left.querySelector('[data-i="'+sel+'"]');
+        if (sel === i) {
+          var cls = 'm' + (matched % 4);
+          lb.classList.remove('sel'); lb.classList.add(cls); lb.disabled = true; b.classList.add(cls); b.disabled = true;
+          matched++; sel = null; setMsg('#t3m', 'Дұрыс жұп!', 'good');
+          if (matched === 4) { setMsg('#t3m', 'Барлық жұпты таптың! Бұл ережелерді келесі деңгейде қолданасың.', 'good'); complete('t3'); }
+        } else { flash(lb, 'bad'); flash(b, 'bad'); lb.classList.remove('sel'); sel = null; setMsg('#t3m', 'Бұл жұп емес. Қайта көр.', 'bad'); }
+      });
+      right.appendChild(b);
+    });
+    box.appendChild(left); box.appendChild(right);
+  })();
+
+  /* ---------- Task 4: conveyor game ---------- */
+  (function(){
+    var N = 12, MAXMISS = 3, KEYS = ['r','g','b','y','k'];
+    var idx = 0, miss = 0, okc = 0, run = false, waiting = false, cur = null, tm = null, rd = null;
+    var item = $('#t4item'), bar = $('#t4bar'), led = $('#t4led'), read = $('#t4read'), bins = $('#t4bins'), go = $('#t4go');
+    function info(){ $('#t4info').textContent = 'Дұрыс: ' + okc + ' / ' + N; $('#t4miss').textContent = 'Қате: ' + miss + ' / ' + MAXMISS; }
+    function renderBins(){
+      var order = idx >= 6 ? shuffle(KEYS) : KEYS;
+      bins.innerHTML = '';
+      order.forEach(function(c){
+        var b = document.createElement('button'); b.type = 'button'; b.className = 'bin'; b.dataset.c = c;
+        b.style.background = COL[c].hex; b.style.color = (c === 'y' || c === 'w') ? '#14172B' : '#fff';
+        b.textContent = COL[c].n + ' себет'; b.disabled = !waiting;
+        b.addEventListener('click', function(){ answer(c); });
+        bins.appendChild(b);
+      });
+    }
+    function lock(on){ bins.querySelectorAll('.bin').forEach(function(b){ b.disabled = on; }); }
+    function nextItem(){
+      if (idx >= N) { finish(); return; }
+      cur = KEYS[Math.floor(Math.random() * KEYS.length)];
+      waiting = false; lock(true);
+      item.style.background = '#8A8FA8'; item.textContent = '?'; led.style.background = '#6B7194';
+      read.className = 'read off'; read.textContent = 'Датчик: зат келіп жатыр...';
+      bar.style.transition = 'none'; bar.style.width = '0%';
+      item.classList.remove('enter'); void item.offsetWidth; item.classList.add('enter');
+      rd = setTimeout(reveal, 550);
+    }
+    function reveal(){
+      if (!run) return;
+      item.style.background = COL[cur].hex; item.textContent = ''; led.style.background = COL[cur].hex;
+      read.className = 'read'; read.textContent = 'Датчик: ' + rgbText(cur);
+      var dur = Math.max(2600, 5400 - idx * 230);
+      renderBins(); waiting = true; lock(false);
+      bar.style.transition = 'none'; bar.style.width = '100%'; void bar.offsetWidth;
+      bar.style.transition = 'width ' + dur + 'ms linear'; bar.style.width = '0%';
+      tm = setTimeout(function(){ answer(null); }, dur);
+    }
+    function answer(c){
+      if (!run || !waiting) return;
+      waiting = false; clearTimeout(tm); lock(true);
+      if (c === cur) { okc++; setMsg('#t4m', 'Дұрыс!', 'good'); }
+      else { miss++; setMsg('#t4m', c === null ? 'Уақыт бітті. Зат ' + COL[cur].n.toLowerCase() + ' түсті еді.' : 'Қате. Зат ' + COL[cur].n.toLowerCase() + ' түсті еді.', 'bad'); }
+      idx++; info();
+      if (miss > MAXMISS) { fail(); return; }
+      rd = setTimeout(nextItem, 800);
+    }
+    function fail(){
+      run = false; go.textContent = 'Қайта ойна'; go.disabled = false;
+      setMsg('#t4m', 'Қате көп болды. Қайта ойнап көр, датчиктің түсіне мұқият қара.', 'bad');
+    }
+    function finish(){
+      run = false; go.textContent = 'Қайта ойна'; go.disabled = false;
+      setMsg('#t4m', 'Конвейер тоқтады. Сен ' + okc + ' затты дұрыс сұрыптадың!', 'good'); complete('t4');
+    }
+    go.addEventListener('click', function(){
+      clearTimeout(tm); clearTimeout(rd);
+      idx = 0; miss = 0; okc = 0; run = true; info(); setMsg('#t4m', '', ''); go.disabled = true; go.textContent = 'Ойын жүріп жатыр';
+      nextItem();
+    });
+    renderBins(); info();
+  })();
+
+  /* ---------- Task 5: sorter program ---------- */
+  (function(){
+    var DEST = { L:'Сол себет', R:'Оң себет', T:'Қоқыс' };
+    var M = [
+      { q:'Қызыл заттар сол себетке, жасыл заттар оң себетке түссін. Қалғанының бәрі қоқысқа.', t:{ r:'L', g:'R', b:'T', y:'T' } },
+      { q:'Қызыл және сары заттар сол себетке түссін. Жасыл және көк заттар оң себетке түссін.', t:{ r:'L', y:'L', g:'R', b:'R' } },
+      { q:'Тек көк заттар қоқысқа түссін. Қызыл және жасыл заттар оң себетке, сары заттар сол себетке.', t:{ r:'R', g:'R', b:'T', y:'L' } }
+    ];
+    var mi = 0, running = false, KEYS = ['r','g','b','y'];
+    var rulesBox = $('#t5rules'), queue = $('#t5queue'), runB = $('#t5run'), nextB = $('#t5next');
+    function build(){
+      rulesBox.innerHTML = '';
+      KEYS.forEach(function(c){
+        var row = document.createElement('div'); row.className = 'rule';
+        row.innerHTML = '<label class="lbl" for="s5_' + c + '">Егер датчик ' + sw(c) + ' <b>' + COL[c].n.toLowerCase() + '</b> көрсе</label>' +
+          '<select id="s5_' + c + '"><option value="">Таңда...</option><option value="L">Сол себетке сал</option><option value="R">Оң себетке сал</option><option value="T">Қоқысқа сал</option></select>';
+        rulesBox.appendChild(row);
+      });
+    }
+    function load(){
+      $('#t5q').textContent = (mi+1) + ' / ' + M.length + '. Тапсырманы оқы да, сұрыптағыштың ережелерін құр.';
+      $('#t5target').textContent = M[mi].q;
+      build(); queue.innerHTML = ''; setMsg('#t5m', '', ''); nextB.hidden = true; runB.disabled = false;
+    }
+    runB.addEventListener('click', function(){
+      if (running) return;
+      var rules = {};
+      for (var k = 0; k < KEYS.length; k++) { var v = $('#s5_' + KEYS[k]).value; if (!v) { setMsg('#t5m', 'Төрт түстің барлығына ереже таңда.', 'bad'); return; } rules[KEYS[k]] = v; }
+      running = true; runB.disabled = true; setMsg('#t5m', 'Конвейер жұмыс істеп тұр...', ''); queue.innerHTML = '';
+      var items = shuffle(KEYS.concat(KEYS)), bad = null, j = 0;
+      (function step(){
+        if (j >= items.length) {
+          running = false; runB.disabled = false;
+          if (!bad) {
+            if (mi === M.length - 1) { setMsg('#t5m', 'Керемет! Сұрыптағыш бәрін дұрыс сұрыптады.', 'good'); complete('t5'); }
+            else { setMsg('#t5m', 'Жарайсың! Барлық зат дұрыс себетке түсті.', 'good'); nextB.hidden = false; }
+          } else setMsg('#t5m', bad, 'bad');
+          return;
+        }
+        var c = items[j], got = rules[c], need = M[mi].t[c], ok = got === need;
+        var r = document.createElement('div'); r.className = 'qrow ' + (ok ? 'ok' : 'no');
+        r.innerHTML = sw(c) + '<span>' + COL[c].n + ' зат → ' + DEST[got] + (ok ? ' ✓' : ' ✗') + '</span>';
+        queue.appendChild(r);
+        if (!ok && !bad) bad = COL[c].n + ' зат «' + DEST[got] + '» жерге түсті, бірақ «' + DEST[need] + '» жерге түсуі керек еді. Ережені түзетіп, қайта қос.';
+        j++; setTimeout(step, 330);
+      })();
+    });
+    nextB.addEventListener('click', function(){ mi++; load(); });
+    load();
+  })();
+
+  /* ---------- Task 6: what does the robot do? ---------- */
+  (function(){
+    function chips(box, arr, withAction){
+      $(box).innerHTML = arr.map(function(x){ return '<span class="chip">' + sw(x[0]) + esc(COL[x[0]].n) + (withAction ? ' → ' + esc(x[1]) : '') + '</span>'; }).join('');
+    }
+    makeRounds({ id:'t6', q:'#t6q', opts:'#t6o', msg:'#t6m', finish:'Керемет! Ереже мен датчик көрсеткенін біріктіріп, роботтың істейтінін дәл айта аласың.',
+      rounds: [
+        { rules:[['r','Тоқта'],['g','Жүр'],['y','Баяулат']], seq:['g','y','r'], q:'Робот не істейді?', o:['Жүр → Баяулат → Тоқта','Жүр → Тоқта → Баяулат','Тоқта → Баяулат → Жүр'], a:0 },
+        { rules:[['b','Оңға бұрыл'],['y','Солға бұрыл'],['r','Тоқта']], seq:['b','b','y','r'], q:'Робот не істейді?', o:['Оңға бұрыл → Оңға бұрыл → Солға бұрыл → Тоқта','Оңға бұрыл → Солға бұрыл → Солға бұрыл → Тоқта','Солға бұрыл → Солға бұрыл → Оңға бұрыл → Тоқта'], a:0 },
+        { rules:[['g','Дыбыс шығар'],['r','Шам жан'],['b','Тоқта']], seq:['r','g','g','b'], q:'Робот не істейді?', o:['Шам жан → Дыбыс шығар → Дыбыс шығар → Тоқта','Дыбыс шығар → Шам жан → Дыбыс шығар → Тоқта','Шам жан → Тоқта → Дыбыс шығар → Дыбыс шығар'], a:0 },
+        { rules:[['r','Тоқта'],['y','Баяулат']], seq:['w','y','w','r'], q:'Ақ түске ереже жоқ, ондай жерде робот түзу жүре береді. Робот не істейді?', o:['Жүр → Баяулат → Жүр → Тоқта','Тоқта → Баяулат → Жүр → Тоқта','Жүр → Баяулат → Баяулат → Тоқта'], a:0 }
+      ],
+      before:function(r){ chips('#t6rules', r.rules, true); chips('#t6seq', r.seq.map(function(c){ return [c]; }), false); } });
+  })();
+
+  /* ---------- Track game (tasks 7, 8, 9) ---------- */
+  var DX = [1,0,-1,0], DY = [0,1,0,-1], GN = 6;
+  var ACTS = [['straight','Түзу жүр'],['right','Оңға бұрыл'],['left','Солға бұрыл'],['stop','Тоқта']];
+  var RK = ['r','g','b','y'];
+  var BOTSVG = '<svg class="bot" viewBox="0 0 44 40" style="transform:rotate(DEGdeg)"><rect x="4" y="6" width="28" height="28" rx="8" fill="#14172B"/><circle cx="21" cy="15" r="3.6" fill="#fff"/><circle cx="21" cy="26" r="3.6" fill="#fff"/><polygon points="32,11 42,20 32,29" fill="#FFC400"/></svg>';
+  var FLAGSVG = '<svg class="flag" viewBox="0 0 24 24"><rect x="5" y="3" width="2.5" height="18" fill="#fff"/><polygon points="7.5,3 20,8 7.5,13" fill="#fff"/></svg>';
+
+  function simulate(tiles, start, rules, maxSteps){
+    var x = start.x, y = start.y, d = start.d, path = [{x:x,y:y,d:d}], turns = 0;
+    for (var s = 0; s < maxSteps; s++) {
+      var c = tiles[x + ',' + y], a = c ? (rules[c] || 'straight') : 'straight';
+      if (a === 'stop') return { end:'stop', x:x, y:y, path:path, turns:turns };
+      if (a === 'right') { d = (d + 1) % 4; turns++; }
+      else if (a === 'left') { d = (d + 3) % 4; turns++; }
+      var nx = x + DX[d], ny = y + DY[d];
+      if (nx < 0 || ny < 0 || nx >= GN || ny >= GN) return { end:'crash', x:x, y:y, path:path, turns:turns };
+      x = nx; y = ny; path.push({x:x,y:y,d:d});
+    }
+    return { end:'loop', x:x, y:y, path:path, turns:turns };
+  }
+
+  function makeTrack(cfg){
+    var host = $(cfg.host), M = cfg.missions, mi = 0, running = false, timer = null, brush = 'r';
+    var tiles, start, flag, road, pre;
+    host.innerHTML =
+      '<div class="robot"><div class="bcol"><div class="pal2" hidden></div><div class="tgrid" role="img" aria-label="Жол алаңы"></div></div>' +
+      '<div class="bcol"><div class="rules"></div><div class="row"><button type="button" class="btn violet" data-a="run">Роботты жібер</button><button type="button" class="btn alt" data-a="reset"></button><button type="button" class="btn green" data-a="next" hidden>Келесі жол</button></div></div></div>' +
+      '<div class="msg" aria-live="polite"></div>';
+    var grid = host.querySelector('.tgrid'), rulesBox = host.querySelector('.rules'), pal = host.querySelector('.pal2'), msg = host.querySelector('.msg');
+    var runB = host.querySelector('[data-a="run"]'), resetB = host.querySelector('[data-a="reset"]'), nextB = host.querySelector('[data-a="next"]');
+    resetB.textContent = cfg.paint ? 'Жолды тазала' : 'Ережені бастапқыға келтір';
+    function say(t, k){ msg.textContent = t; msg.className = 'msg' + (k ? ' ' + k : ''); }
+    function draw(pos, trail){
+      var h = '';
+      for (var y = 0; y < GN; y++) for (var x = 0; x < GN; x++) {
+        var key = x + ',' + y, c = tiles[key];
+        var cls = 'tc' + (road && road[key] ? ' road' : '') + (trail && trail[key] ? ' trail' : '') + (x === start.x && y === start.y ? ' start' : '');
+        var inner = '';
+        if (c) inner += '<span class="ch' + (c === 'y' ? ' dk' : '') + '">' + COL[c].ch + '</span>';
+        if (flag && x === flag.x && y === flag.y) inner += FLAGSVG;
+        if (pos && pos.x === x && pos.y === y) inner += BOTSVG.replace('DEG', pos.d * 90);
+        h += '<div class="' + cls + '" data-x="' + x + '" data-y="' + y + '"' + (c ? ' style="background:' + COL[c].hex + '"' : '') + '>' + inner + '</div>';
+      }
+      grid.innerHTML = h;
+    }
+    function buildRules(vals){
+      rulesBox.innerHTML = '';
+      RK.forEach(function(c){
+        var row = document.createElement('div'); row.className = 'rule';
+        var opts = ACTS.map(function(a){ return '<option value="' + a[0] + '">' + a[1] + '</option>'; }).join('');
+        row.innerHTML = '<label class="lbl" for="' + cfg.id + '_' + c + '">' + sw(c) + ' ' + COL[c].n + ' түс</label><select id="' + cfg.id + '_' + c + '">' + opts + '</select>';
+        rulesBox.appendChild(row);
+        row.querySelector('select').value = (vals && vals[c]) || 'straight';
+      });
+    }
+    function readRules(){ var r = {}; RK.forEach(function(c){ r[c] = $('#' + cfg.id + '_' + c).value; }); return r; }
+    function loadM(){
+      var m = M[mi];
+      tiles = JSON.parse(JSON.stringify(m.tiles)); start = m.start; flag = m.flag || null; road = null; pre = m.pre || null;
+      if (m.ref) { var rr = simulate(tiles, start, m.ref, 60), set = {}; rr.path.forEach(function(p){ set[p.x + ',' + p.y] = 1; }); road = set; }
+      if (cfg.q) $(cfg.q).textContent = (mi + 1) + ' / ' + M.length + '. ' + m.q;
+      buildRules(pre); draw(start, null); say('', ''); nextB.hidden = true; runB.disabled = false;
+    }
+    if (cfg.paint) {
+      pal.hidden = false;
+      pal.innerHTML = RK.map(function(c){ return '<button type="button" data-b="' + c + '" aria-pressed="' + (c === brush) + '">' + sw(c) + COL[c].n + '</button>'; }).join('') + '<button type="button" data-b="x" aria-pressed="false">Өшіргіш</button>';
+      pal.addEventListener('click', function(e){
+        var b = e.target.closest('[data-b]'); if (!b) return; brush = b.dataset.b;
+        pal.querySelectorAll('button').forEach(function(x){ x.setAttribute('aria-pressed', x.dataset.b === brush ? 'true' : 'false'); });
+      });
+      grid.addEventListener('click', function(e){
+        if (running) return;
+        var c = e.target.closest('.tc'); if (!c) return;
+        var x = +c.dataset.x, y = +c.dataset.y; if (x === start.x && y === start.y) { say('Старт тақтайшасына түс қоюға болмайды.', 'bad'); return; }
+        var key = x + ',' + y; if (brush === 'x') delete tiles[key]; else tiles[key] = brush;
+        draw(start, null); say('', '');
+      });
+    }
+    resetB.addEventListener('click', function(){
+      if (running) return;
+      if (cfg.paint) { tiles = {}; draw(start, null); say('', ''); }
+      else { buildRules(pre); draw(start, null); say('', ''); }
+    });
+    nextB.addEventListener('click', function(){ mi++; loadM(); });
+    runB.addEventListener('click', function(){
+      if (running) return;
+      var rules = readRules(), res = simulate(tiles, start, rules, 60);
+      running = true; runB.disabled = true; say('Робот жолға шықты...', '');
+      var p = 0, trail = {};
+      draw(res.path[0], trail);
+      timer = setInterval(function(){
+        p++;
+        if (p >= res.path.length) { clearInterval(timer); running = false; runB.disabled = false; finish(res); return; }
+        var q = res.path[p]; trail[res.path[p-1].x + ',' + res.path[p-1].y] = 1;
+        draw(q, trail);
+      }, 340);
+    });
+    function finish(res){
+      var m = M[mi], ok;
+      if (cfg.paint) ok = res.end === 'stop' && tiles[res.x + ',' + res.y] === 'r' && res.turns >= 2 && res.path.length >= 5;
+      else ok = res.end === 'stop' && res.x === flag.x && res.y === flag.y;
+      if (ok) {
+        if (mi === M.length - 1) { say(cfg.paint ? 'Керемет! Сенің жолың жұмыс істейді. Робот ' + res.turns + ' рет бұрылып, қызыл тақтайшада тоқтады.' : 'Керемет! Робот мәреге жетті.', 'good'); complete(cfg.id); }
+        else { say('Жарайсың! Робот мәреге жетті.', 'good'); nextB.hidden = false; }
+        return;
+      }
+      if (res.end === 'crash') say('Робот алаңнан шығып кетті. Қай түстің ережесі дұрыс емес екенін ойлан.', 'bad');
+      else if (res.end === 'loop') say('Робот тоқтамай жүре берді. Мәреде қай команда керек?', 'bad');
+      else if (cfg.paint) say(tiles[res.x + ',' + res.y] !== 'r' ? 'Робот қызыл емес жерде тоқтады. «Тоқта» ережесін тек қызыл түске қой.' : 'Жолда кемінде 2 бұрылыс және ұзынырақ жол керек. Жолды өзгертіп көр.', 'bad');
+      else say('Робот мәреге жетпей тоқтады. Тоқта командасы қай түске керек екенін тап.', 'bad');
+    }
+    loadM();
+  }
+
+  var REF = { r:'stop', b:'right', y:'left', g:'straight' };
+  makeTrack({ host:'#g7', q:'#t7q', id:'r7', missions:[
+    { q:'Жолда бір бұрылыс бар. Мәреде жалауша тұр. Түстерге ереже бер.', start:{x:0,y:5,d:3}, flag:{x:3,y:2}, ref:REF, tiles:{ '0,2':'b', '3,2':'r' } },
+    { q:'Енді екі түрлі бұрылыс бар. Қай түс қай жаққа бұрады?', start:{x:0,y:5,d:3}, flag:{x:2,y:0}, ref:REF, tiles:{ '0,2':'b', '2,2':'y', '2,0':'r' } },
+    { q:'Жол ұзын, жасыл тақтайша да бар. Жасыл түске дұрыс ереже тап.', start:{x:0,y:5,d:3}, flag:{x:5,y:2}, ref:REF, tiles:{ '0,3':'b', '2,3':'b', '2,5':'y', '4,5':'y', '4,3':'g', '4,2':'b', '5,2':'r' } }
+  ] });
+  makeTrack({ host:'#g8', q:'#t8q', id:'r8', missions:[
+    { q:'Робот адасып жүр. Ережелерде қате бар. Оларды түзет.', start:{x:0,y:5,d:3}, flag:{x:4,y:1}, ref:REF, pre:{ r:'straight', b:'left', g:'right', y:'stop' }, tiles:{ '0,1':'b', '3,1':'g', '4,1':'r' } },
+    { q:'Бұл жолда да қате ережелер қойылған. Робот мәреге жетуі үшін түзет.', start:{x:5,y:5,d:3}, flag:{x:5,y:1}, ref:REF, pre:{ r:'straight', b:'left', g:'stop', y:'right' }, tiles:{ '5,3':'y', '3,3':'b', '3,1':'b', '5,1':'r' } }
+  ] });
+  makeTrack({ host:'#g9', id:'r9', paint:true, missions:[
+    { q:'', start:{x:0,y:5,d:3}, tiles:{ '0,3':'b' } }
+  ] });
+
+  /* ---------- Diploma ---------- */
+  $('#mk').addEventListener('click', function(){
+    var name = $('#who').value.trim(); if (!name) { toast('Алдымен атыңды жаз'); $('#who').focus(); return; }
+    var n = count();
+    $('#dipName').textContent = name;
+    $('#dipText').textContent = n >= 9 ? 'Барлық тапсырманы орындап, Түс детективі атанды!' : (n + ' жұлдыз жинады. Қалған тапсырмаларды орындап, толық диплом ал!');
+    $('#dipStars').innerHTML = starsHtml(n, 9);
+    $('#dip').hidden = false;
+  });
+
+  refresh(); route();
+})();
+</script>
+
+</body>
+</html>
